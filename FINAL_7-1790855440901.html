@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>THE CUE CLUB | Management System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        bw: {
+                            bg: '#050505',
+                            panel: '#111111',
+                            border: '#333333',
+                            hover: '#222222'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #050505; color: #ffffff; }
+        .chat-scroll::-webkit-scrollbar { width: 4px; }
+        .chat-scroll::-webkit-scrollbar-track { background: transparent; }
+        .chat-scroll::-webkit-scrollbar-thumb { background: #ffffff; border-radius: 0px; }
+        
+        .pool-table {
+            position: relative;
+            background: #0a0a0a;
+            border: 1px solid #333;
+            transition: all 0.3s ease;
+        }
+        .pool-table:hover {
+            border-color: #fff;
+            box-shadow: 0 0 15px rgba(255,255,255,0.1);
+        }
+        
+        .toast {
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            transform: translateY(-20px);
+            opacity: 0;
+            pointer-events: none;
+        }
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #ffffff !important;
+            box-shadow: 0 0 0 1px #ffffff;
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden selection:bg-white selection:text-black">
+
+    <!-- LANDING PAGE VIEW -->
+    <div id="landing-view" class="fixed inset-0 bg-bw-bg z-50 flex flex-col items-center justify-center p-6 text-center">
+        <div class="max-w-md w-full border border-bw-border bg-bw-panel p-10 shadow-2xl relative">
+            <div class="absolute top-4 left-4 flex items-center gap-2">
+                <div class="w-2.5 h-2.5 bg-white rounded-full animate-pulse" id="landing-connection-status"></div>
+                <span class="text-[10px] tracking-widest text-gray-400 uppercase">Live Network</span>
+            </div>
+            
+            <h1 class="text-3xl font-black tracking-[0.3em] uppercase mb-2 mt-4">The Cue Club</h1>
+            <p class="text-gray-400 text-xs tracking-widest uppercase mb-10">Billiard Timing, Points & Support System</p>
+            
+            <div class="flex flex-col gap-4">
+                <button id="enter-tables-btn" class="w-full bg-white text-black font-bold uppercase tracking-widest py-4 text-xs hover:bg-gray-200 transition">
+                    View Live Tables
+                </button>
+                <button id="enter-user-login-btn" class="w-full border border-bw-border text-white font-bold uppercase tracking-widest py-4 text-xs hover:border-white transition">
+                    Player Account Login
+                </button>
+                <button id="enter-admin-btn" class="w-full border border-bw-border text-gray-400 font-bold uppercase tracking-widest py-4 text-xs hover:text-white transition">
+                    Admin Portal
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN APP HEADER -->
+    <header class="bg-bw-panel border-b border-bw-border p-5 flex flex-col md:flex-row justify-between items-center z-10 relative gap-4">
+        <div class="flex items-center gap-4">
+            <button id="back-to-home" class="text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-white transition">&larr; Home</button>
+            <div class="w-3 h-3 bg-white rounded-full animate-pulse shadow-[0_0_10px_rgba(255,255,255,0.8)]" id="connection-status"></div>
+            <h1 class="text-xl font-black tracking-[0.2em] uppercase">The Cue Club</h1>
+        </div>
+        
+        <div class="flex items-center gap-4 text-sm font-semibold tracking-widest uppercase">
+            <!-- User Info Display -->
+            <div id="user-info-display" class="hidden items-center gap-3 px-4 py-2 border border-bw-border text-gray-400 text-xs flex-wrap">
+                <span id="display-username" class="text-white font-bold">USER</span>
+                <span id="display-points" class="border border-gray-600 px-2 py-0.5 text-[10px] text-gray-300">0 PTS</span>
+                <span id="display-free-hour" class="bg-white text-black px-2 py-0.5 text-[10px] font-bold hidden">FREE HR</span>
+                <button id="redeem-points-btn" class="border border-white bg-white text-black px-2 py-0.5 text-[10px] font-bold hidden hover:bg-gray-200 transition">REDEEM (10 PTS)</button>
+                <button id="user-logout-btn" class="text-gray-500 hover:text-white ml-2 underline text-[10px]">Logout</button>
+            </div>
+
+            <button id="header-user-login-btn" class="border border-white hover:bg-white hover:text-black px-4 py-2 transition text-xs">
+                Login / Register
+            </button>
+            <button id="toggle-view-btn" class="bg-white text-black hover:bg-gray-200 px-4 py-2 transition text-xs">
+                Admin Mode
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN APP CONTENT -->
+    <main class="flex-1 flex flex-col md:flex-row overflow-hidden relative">
+        
+        <!-- Tables Section -->
+        <section class="flex-1 p-6 md:p-10 overflow-y-auto relative z-0">
+            <div class="flex justify-between items-center mb-8 border-b border-bw-border pb-4">
+                <h2 class="text-xl font-light text-gray-400 uppercase tracking-[0.3em]">Live Floor (12 Tables)</h2>
+                <span id="current-mode-badge" class="px-3 py-1 bg-bw-panel border border-bw-border text-xs font-bold uppercase tracking-widest text-white">
+                    Guest Mode
+                </span>
+            </div>
+            
+            <div id="tables-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <!-- Tables injected via JS -->
+            </div>
+        </section>
+
+        <!-- Customer Support / Chat Section -->
+        <section class="w-full md:w-[350px] lg:w-[400px] bg-bw-panel border-l border-bw-border flex flex-col h-[40vh] md:h-auto z-10">
+            <div class="bg-white text-black p-3 flex items-center justify-between border-b border-bw-border">
+                <button id="admin-chat-back" class="hidden text-xs uppercase font-bold tracking-wider hover:text-gray-600 transition">&larr; Back</button>
+                <span id="chat-header-title" class="font-bold text-xs tracking-[0.2em] uppercase text-center flex-1">Support Desk</span>
+                <div class="flex items-center gap-2">
+                    <button id="admin-give-pts-btn" class="hidden bg-black text-white px-2 py-1 text-[9px] font-bold uppercase tracking-wider hover:bg-gray-800 transition">+1 PTS</button>
+                    <button id="clear-chat-btn" class="border border-black px-2 py-1 text-[9px] font-bold uppercase tracking-wider hover:bg-black hover:text-white transition">Clear</button>
+                </div>
+            </div>
+            
+            <div id="chat-user-list" class="hidden flex-1 overflow-y-auto chat-scroll p-4 flex flex-col gap-2"></div>
+
+            <div id="chat-messages-container" class="flex-1 flex flex-col overflow-hidden">
+                <div id="chat-messages" class="flex-1 p-4 overflow-y-auto chat-scroll flex flex-col gap-4">
+                    <div class="text-center text-gray-500 text-xs mt-4 uppercase tracking-widest">Connecting to network...</div>
+                </div>
+
+                <div class="p-4 bg-bw-bg border-t border-bw-border flex gap-2">
+                    <input type="text" id="chat-input" placeholder="MESSAGE..." class="flex-1 bg-bw-panel text-white px-4 py-3 border border-bw-border text-xs uppercase tracking-wider transition">
+                    <button id="send-btn" class="bg-white hover:bg-gray-200 text-black font-bold px-5 py-3 transition text-xs uppercase tracking-wider">
+                        Send
+                    </button>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- MODALS -->
+
+    <!-- User Login & Registration Modal -->
+    <div id="user-modal" class="fixed inset-0 bg-black/95 backdrop-blur-sm flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-bw-panel p-8 border border-bw-border max-w-sm w-full relative transform scale-95 transition-transform duration-300" id="user-modal-inner">
+            <h2 class="text-2xl font-black uppercase tracking-widest mb-2 text-center text-white">Player Portal</h2>
+            <p class="text-gray-400 text-xs tracking-widest mb-6 text-center uppercase">Login / Register to earn points & free play</p>
+            
+            <div class="space-y-4 mb-6">
+                <input type="text" id="user-username-input" placeholder="USERNAME" class="w-full bg-bw-bg text-white p-4 border border-bw-border text-sm tracking-wider uppercase transition">
+                <input type="password" id="user-password-input" placeholder="PASSWORD" class="w-full bg-bw-bg text-white p-4 border border-bw-border text-sm tracking-wider uppercase transition">
+            </div>
+            
+            <div class="flex flex-col gap-3">
+                <button id="confirm-user-login" class="w-full bg-white text-black font-bold uppercase tracking-widest px-6 py-4 hover:bg-gray-200 transition">Enter Club</button>
+                <button id="cancel-user-login" class="w-full border border-bw-border text-gray-400 font-bold uppercase tracking-widest px-6 py-4 hover:text-white transition">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Login Modal -->
+    <div id="login-modal" class="fixed inset-0 bg-black/95 backdrop-blur-sm flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-bw-panel p-8 border border-bw-border max-w-sm w-full relative transform scale-95 transition-transform duration-300" id="login-modal-inner">
+            <h2 class="text-2xl font-black uppercase tracking-widest mb-2 text-center text-white">System Admin</h2>
+            <p class="text-gray-500 text-xs tracking-widest mb-6 text-center uppercase">admin / admin</p>
+            
+            <div class="space-y-4 mb-6">
+                <input type="text" id="username-input" placeholder="USERNAME" class="w-full bg-bw-bg text-white p-4 border border-bw-border text-sm tracking-wider uppercase transition">
+                <input type="password" id="password-input" placeholder="PASSWORD" class="w-full bg-bw-bg text-white p-4 border border-bw-border text-sm tracking-wider uppercase transition">
+            </div>
+            
+            <div class="flex flex-col gap-3">
+                <button id="confirm-login" class="w-full bg-white text-black font-bold uppercase tracking-widest px-6 py-4 hover:bg-gray-200 transition">Authorize</button>
+                <button id="cancel-login" class="w-full border border-bw-border text-gray-400 font-bold uppercase tracking-widest px-6 py-4 hover:text-white transition">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Set & Extend Time Modal -->
+    <div id="time-modal" class="fixed inset-0 bg-black/95 backdrop-blur-sm flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-bw-panel p-8 border border-bw-border max-w-md w-full relative transform scale-95 transition-transform duration-300" id="time-modal-inner">
+            <h2 class="text-xl font-black uppercase tracking-widest mb-1 text-center">Manage Table Time</h2>
+            <p id="time-modal-table-name" class="text-gray-400 text-xs tracking-widest mb-6 text-center uppercase">Table X</p>
+            
+            <p class="text-[10px] uppercase tracking-widest text-gray-500 mb-2 font-bold">Standard Configurations</p>
+            <div class="grid grid-cols-2 gap-3 mb-4">
+                <button class="time-preset-btn bg-bw-bg border border-bw-border hover:border-white text-white py-3 uppercase tracking-widest text-xs font-bold transition" data-minutes="30">30 Min</button>
+                <button class="time-preset-btn bg-bw-bg border border-bw-border hover:border-white text-white py-3 uppercase tracking-widest text-xs font-bold transition" data-minutes="60">1 Hour</button>
+                <button class="time-preset-btn bg-bw-bg border border-bw-border hover:border-white text-white py-3 uppercase tracking-widest text-xs font-bold transition" data-minutes="120">2 Hours</button>
+                <button class="time-preset-btn bg-white text-black hover:bg-gray-200 py-3 uppercase tracking-widest text-xs font-bold transition" data-minutes="0">End Session</button>
+            </div>
+
+            <p class="text-[10px] uppercase tracking-widest text-gray-500 mb-2 font-bold">Extend Active Time</p>
+            <div class="grid grid-cols-3 gap-2 mb-6">
+                <button class="time-extend-btn bg-bw-bg border border-bw-border hover:border-white text-white py-2 uppercase tracking-widest text-[10px] font-bold transition" data-add="15">+15 Min</button>
+                <button class="time-extend-btn bg-bw-bg border border-bw-border hover:border-white text-white py-2 uppercase tracking-widest text-[10px] font-bold transition" data-add="30">+30 Min</button>
+                <button class="time-extend-btn bg-bw-bg border border-bw-border hover:border-white text-white py-2 uppercase tracking-widest text-[10px] font-bold transition" data-add="60">+1 Hour</button>
+            </div>
+
+            <div class="relative flex items-center py-2 mb-4">
+                <div class="flex-grow border-t border-bw-border"></div>
+                <span class="flex-shrink-0 mx-4 text-gray-500 text-[10px] tracking-widest uppercase">Custom Minutes</span>
+                <div class="flex-grow border-t border-bw-border"></div>
+            </div>
+
+            <div class="flex gap-2 mb-6">
+                <input type="number" id="custom-minutes-input" placeholder="MINS" class="flex-1 bg-bw-bg text-white p-3 border border-bw-border text-xs tracking-wider uppercase transition">
+                <button id="custom-time-btn" class="bg-bw-bg border border-bw-border hover:border-white font-bold uppercase tracking-widest px-6 text-xs transition">Set</button>
+            </div>
+
+            <button id="cancel-time" class="w-full text-gray-500 hover:text-white uppercase tracking-widest text-xs font-bold transition">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast fixed top-24 left-1/2 transform -translate-x-1/2 bg-white text-black px-6 py-4 border border-gray-200 shadow-2xl z-50 flex items-center gap-3">
+        <span id="toast-message" class="font-bold tracking-widest uppercase text-xs">Notification message</span>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getDatabase, ref, set, get, onValue, push } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAEzoG9B5NWU2PGhRCU8os8ShVfuoDULo0",
+            authDomain: "billiard-timing-table.firebaseapp.com",
+            projectId: "billiard-timing-table",
+            storageBucket: "billiard-timing-table.firebasestorage.app",
+            messagingSenderId: "945915935362",
+            appId: "1:945915935362:web:e9317cd0a22fa70512d29b",
+            measurementId: "G-T0WT87033T",
+            databaseURL: "https://billiard-timing-table-default-rtdb.firebaseio.com" 
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        let isAdmin = false;
+        let currentUser = null; 
+        let userData = null;    
+        let activeTableIdForModal = null;
+        
+        let tablesData = {};
+        for(let i = 1; i <= 12; i++) {
+            tablesData[i] = { status: 'Available', endTime: null };
+        }
+
+        let guestId = localStorage.getItem('cueClubGuestId');
+        if (!guestId) {
+            guestId = `GUEST-${Math.floor(1000 + Math.random() * 9000)}`;
+            localStorage.setItem('cueClubGuestId', guestId);
+        }
+
+        let allChatsData = {};
+        let activeAdminChatUserId = null; 
+        let chatUnsubscribe = null;
+
+        // DOM Elements
+        const landingView = document.getElementById('landing-view');
+        const enterTablesBtn = document.getElementById('enter-tables-btn');
+        const enterUserLoginBtn = document.getElementById('enter-user-login-btn');
+        const enterAdminBtn = document.getElementById('enter-admin-btn');
+        const backToHome = document.getElementById('back-to-home');
+        const landingConnectionStatus = document.getElementById('landing-connection-status');
+
+        const connectionStatus = document.getElementById('connection-status');
+        const tablesContainer = document.getElementById('tables-container');
+        
+        const toggleViewBtn = document.getElementById('toggle-view-btn');
+        const headerUserLoginBtn = document.getElementById('header-user-login-btn');
+        const userLogoutBtn = document.getElementById('user-logout-btn');
+        const currentModeBadge = document.getElementById('current-mode-badge');
+        const userInfoDisplay = document.getElementById('user-info-display');
+        const displayUsername = document.getElementById('display-username');
+        const displayPoints = document.getElementById('display-points');
+        const displayFreeHour = document.getElementById('display-free-hour');
+        const redeemPointsBtn = document.getElementById('redeem-points-btn');
+        
+        const toast = document.getElementById('toast');
+        const toastMessage = document.getElementById('toast-message');
+
+        const userModal = document.getElementById('user-modal');
+        const userModalInner = document.getElementById('user-modal-inner');
+        const userUsernameInput = document.getElementById('user-username-input');
+        const userPasswordInput = document.getElementById('user-password-input');
+        const confirmUserLogin = document.getElementById('confirm-user-login');
+        const cancelUserLogin = document.getElementById('cancel-user-login');
+
+        const loginModal = document.getElementById('login-modal');
+        const loginModalInner = document.getElementById('login-modal-inner');
+        const usernameInput = document.getElementById('username-input');
+        const passwordInput = document.getElementById('password-input');
+        const confirmLogin = document.getElementById('confirm-login');
+        const cancelLogin = document.getElementById('cancel-login');
+        
+        const timeModal = document.getElementById('time-modal');
+        const timeModalInner = document.getElementById('time-modal-inner');
+        const timeModalTableName = document.getElementById('time-modal-table-name');
+        const cancelTime = document.getElementById('cancel-time');
+        const customMinutesInput = document.getElementById('custom-minutes-input');
+        const customTimeBtn = document.getElementById('custom-time-btn');
+
+        const chatMessagesContainer = document.getElementById('chat-messages-container');
+        const chatUserList = document.getElementById('chat-user-list');
+        const chatMessages = document.getElementById('chat-messages');
+        const chatInput = document.getElementById('chat-input');
+        const sendBtn = document.getElementById('send-btn');
+        const chatHeaderTitle = document.getElementById('chat-header-title');
+        const adminChatBackBtn = document.getElementById('admin-chat-back');
+        const clearChatBtn = document.getElementById('clear-chat-btn');
+        const adminGivePtsBtn = document.getElementById('admin-give-pts-btn');
+
+        function init() {
+            renderTables();
+            setupTableListener();
+            setupChatListener();
+            setInterval(updateAllTableUIs, 1000);
+        }
+
+        // Navigation Flow
+        enterTablesBtn.addEventListener('click', () => { landingView.classList.add('hidden'); });
+        enterUserLoginBtn.addEventListener('click', () => { landingView.classList.add('hidden'); openUserModal(); });
+        enterAdminBtn.addEventListener('click', () => { landingView.classList.add('hidden'); openLoginModal(); });
+        backToHome.addEventListener('click', () => { landingView.classList.remove('hidden'); });
+
+        function setupTableListener() {
+            const tablesRef = ref(db, 'billiard_tables');
+            onValue(tablesRef, (snapshot) => {
+                connectionStatus.classList.remove('animate-pulse');
+                landingConnectionStatus.classList.remove('animate-pulse');
+                const data = snapshot.val() || {};
+                
+                for (let i = 1; i <= 12; i++) {
+                    if (data[i] && data[i].status) {
+                        tablesData[i] = data[i];
+                    } else {
+                        tablesData[i] = { status: 'Available', endTime: null };
+                    }
+                }
+                updateAllTableUIs();
+            }, (error) => {
+                showToast("Connection failed.");
+            });
+        }
+
+        // User Authentication & Password Logic
+        function openUserModal() {
+            userModal.classList.remove('hidden');
+            setTimeout(() => {
+                userModal.classList.remove('opacity-0');
+                userModalInner.classList.remove('scale-95');
+            }, 10);
+            userUsernameInput.value = '';
+            userPasswordInput.value = '';
+            userUsernameInput.focus();
+        }
+
+        function closeUserModal() {
+            userModal.classList.add('opacity-0');
+            userModalInner.classList.add('scale-95');
+            setTimeout(() => userModal.classList.add('hidden'), 300);
+        }
+
+        confirmUserLogin.addEventListener('click', async () => {
+            const username = userUsernameInput.value.trim().toUpperCase();
+            const password = userPasswordInput.value.trim();
+            if (!username || !password) {
+                showToast("Fill in all fields");
+                return;
+            }
+
+            const userRef = ref(db, `billiard_users/${username}`);
+            get(userRef).then((snapshot) => {
+                if (snapshot.exists()) {
+                    const existingData = snapshot.val();
+                    if (existingData.password !== password) {
+                        showToast("Incorrect Password!");
+                        return;
+                    }
+                    userData = existingData;
+                    if (userData.points === undefined) userData.points = 0;
+                    showToast(`Welcome back, ${username}`);
+                } else {
+                    userData = { password: password, points: 0, hasFreeHour: true, createdAt: Date.now() };
+                    set(userRef, userData);
+                    showToast(`Account created! 1 Free Hour Granted.`);
+                }
+                
+                currentUser = username;
+                isAdmin = false;
+                
+                headerUserLoginBtn.classList.add('hidden');
+                userInfoDisplay.classList.remove('hidden');
+                userInfoDisplay.classList.add('flex');
+                displayUsername.innerText = username;
+                toggleViewBtn.innerText = "Admin Mode";
+                currentModeBadge.innerText = "Player Mode";
+                
+                updateUserDisplay();
+                closeUserModal();
+                updateAllTableUIs();
+                setupChatListener();
+                
+                onValue(userRef, (snap) => {
+                    if (snap.exists()) {
+                        userData = snap.val();
+                        updateUserDisplay();
+                        updateAllTableUIs();
+                    }
+                });
+            });
+        });
+
+        function logoutUser() {
+            currentUser = null;
+            userData = null;
+            headerUserLoginBtn.classList.remove('hidden');
+            userInfoDisplay.classList.add('hidden');
+            userInfoDisplay.classList.remove('flex');
+            currentModeBadge.innerText = "Guest Mode";
+            showToast("Logged out successfully");
+            updateAllTableUIs();
+            setupChatListener();
+        }
+
+        userLogoutBtn.addEventListener('click', logoutUser);
+
+        function updateUserDisplay() {
+            if (userData) {
+                displayPoints.innerText = `${userData.points || 0} PTS`;
+                if (userData.hasFreeHour) {
+                    displayFreeHour.classList.remove('hidden');
+                } else {
+                    displayFreeHour.classList.add('hidden');
+                }
+                
+                // Show redeem button if points >= 10 and no active free hour
+                if ((userData.points || 0) >= 10 && !userData.hasFreeHour) {
+                    redeemPointsBtn.classList.remove('hidden');
+                } else {
+                    redeemPointsBtn.classList.add('hidden');
+                }
+            }
+        }
+
+        // Redeem 10 points for a free hour
+        redeemPointsBtn.addEventListener('click', () => {
+            if (!currentUser || !userData || userData.points < 10) return;
+            const userRef = ref(db, `billiard_users/${currentUser}`);
+            const updatedPoints = userData.points - 10;
+            const updatedData = { ...userData, points: updatedPoints, hasFreeHour: true };
+            set(userRef, updatedData);
+            showToast("Successfully redeemed 1 Free Hour!");
+        });
+
+        cancelUserLogin.addEventListener('click', closeUserModal);
+        headerUserLoginBtn.addEventListener('click', openUserModal);
+
+        window.claimFreeHour = function(tableId) {
+            if (!currentUser || !userData?.hasFreeHour) return;
+            
+            const tableRef = ref(db, `billiard_tables/${tableId}`);
+            const userRef = ref(db, `billiard_users/${currentUser}`);
+            
+            const endTime = Date.now() + (60 * 60 * 1000);
+            
+            set(tableRef, { status: 'Occupied', endTime: endTime, occupiedBy: currentUser });
+            set(userRef, { ...userData, hasFreeHour: false });
+            
+            showToast(`Free Hour Activated on Table ${pad(tableId)}!`);
+        };
+
+        function renderTables() {
+            tablesContainer.innerHTML = '';
+            for (let i = 1; i <= 12; i++) {
+                const tableHTML = `
+                    <div class="pool-table p-6 flex flex-col items-center justify-center gap-3">
+                        <h3 class="text-white font-black text-xl mb-1 tracking-[0.2em]">TBL ${pad(i)}</h3>
+                        
+                        <div id="status-badge-${i}" class="px-4 py-1 text-[10px] font-bold uppercase tracking-[0.2em] border border-gray-600 text-gray-400 mb-2 transition-colors duration-300">
+                            Available
+                        </div>
+                        
+                        <div id="timer-${i}" class="text-3xl font-mono text-white tracking-widest h-10 flex items-center justify-center mb-2">
+                            --:--:--
+                        </div>
+                        
+                        <button id="admin-btn-${i}" class="w-full mt-2 bg-white text-black px-4 py-3 text-xs font-bold uppercase tracking-widest hidden hover:bg-gray-300 transition" onclick="window.openTimeModal(${i})">
+                            Config / Extend
+                        </button>
+
+                        <button id="free-hour-btn-${i}" class="w-full mt-2 border-2 border-white text-white hover:bg-white hover:text-black px-4 py-3 text-xs font-bold uppercase tracking-widest hidden transition" onclick="window.claimFreeHour(${i})">
+                            Claim Free Hr
+                        </button>
+                    </div>
+                `;
+                tablesContainer.insertAdjacentHTML('beforeend', tableHTML);
+            }
+            updateAllTableUIs();
+        }
+
+        function updateAllTableUIs() {
+            const now = Date.now();
+
+            for (let i = 1; i <= 12; i++) {
+                const table = tablesData[i];
+                if(!table) continue;
+
+                const badge = document.getElementById(`status-badge-${i}`);
+                const timerEl = document.getElementById(`timer-${i}`);
+                const adminBtn = document.getElementById(`admin-btn-${i}`);
+                const freeBtn = document.getElementById(`free-hour-btn-${i}`);
+                const tableContainer = badge?.closest('.pool-table');
+                if (!badge || !timerEl) continue;
+
+                let isOccupied = table.endTime && table.endTime > now;
+
+                if (isOccupied) {
+                    const remaining = table.endTime - now;
+                    const hours = Math.floor((remaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                    const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+                    const seconds = Math.floor((remaining % (1000 * 60)) / 1000);
+
+                    badge.className = "px-4 py-1 text-[10px] font-bold uppercase tracking-[0.2em] bg-white text-black mb-2 transition-colors duration-300";
+                    badge.innerText = "Occupied";
+                    timerEl.innerText = `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+                    if (tableContainer) tableContainer.style.borderColor = '#ffffff';
+                } else {
+                    if (table.status === 'Occupied') {
+                        set(ref(db, `billiard_tables/${i}`), { status: 'Available', endTime: null });
+                    }
+                    badge.className = "px-4 py-1 text-[10px] font-bold uppercase tracking-[0.2em] border border-gray-600 text-gray-400 mb-2 transition-colors duration-300";
+                    badge.innerText = "Available";
+                    timerEl.innerText = "--:--:--";
+                    if (tableContainer) tableContainer.style.borderColor = '#333333';
+                }
+
+                if (adminBtn) {
+                    if (isAdmin) {
+                        adminBtn.style.display = 'block';
+                        if (freeBtn) freeBtn.style.display = 'none';
+                    } else if (!isOccupied && currentUser && userData?.hasFreeHour) {
+                        adminBtn.style.display = 'none';
+                        if (freeBtn) freeBtn.style.display = 'block';
+                    } else {
+                        adminBtn.style.display = 'none';
+                        if (freeBtn) freeBtn.style.display = 'none';
+                    }
+                }
+            }
+        }
+
+        function pad(num) {
+            return num.toString().padStart(2, '0');
+        }
+
+        // Chat Support Listener & Management
+        function setupChatListener() {
+            if (chatUnsubscribe) chatUnsubscribe(); 
+
+            const activeChatId = currentUser || guestId;
+
+            if (isAdmin) {
+                const allChatsRef = ref(db, 'billiard_chats');
+                chatUnsubscribe = onValue(allChatsRef, (snapshot) => {
+                    allChatsData = snapshot.val() || {};
+                    if (activeAdminChatUserId) {
+                        renderMessages(activeAdminChatUserId, allChatsData[activeAdminChatUserId]?.messages || {});
+                    } else {
+                        renderAdminUserList();
+                    }
+                });
+            } else {
+                const myChatRef = ref(db, `billiard_chats/${activeChatId}`);
+                chatUnsubscribe = onValue(myChatRef, (snapshot) => {
+                    const data = snapshot.val() || {};
+                    renderMessages(activeChatId, data.messages || {});
+                });
+            }
+        }
+
+        function renderAdminUserList() {
+            chatUserList.innerHTML = '';
+            adminGivePtsBtn.classList.add('hidden');
+            const users = Object.keys(allChatsData).map(uid => ({
+                uid: uid,
+                lastUpdated: allChatsData[uid].lastUpdated || 0,
+                lastMessage: extractLastMessage(allChatsData[uid].messages)
+            })).sort((a, b) => b.lastUpdated - a.lastUpdated);
+
+            if (users.length === 0) {
+                chatUserList.innerHTML = '<div class="text-center text-gray-500 text-xs mt-8 uppercase tracking-widest">No active requests.</div>';
+                return;
+            }
+
+            users.forEach(user => {
+                const div = document.createElement('div');
+                div.className = "p-4 bg-bw-bg border border-bw-border hover:border-white cursor-pointer transition flex flex-col gap-2";
+                div.onclick = () => openAdminChat(user.uid);
+                
+                div.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <span class="text-white font-bold text-xs uppercase tracking-widest">${user.uid}</span>
+                        <span class="text-[10px] text-gray-500 tracking-wider">${formatTimeShort(user.lastUpdated)}</span>
+                    </div>
+                    <div class="text-gray-400 text-xs truncate uppercase">${user.lastMessage}</div>
+                `;
+                chatUserList.appendChild(div);
+            });
+        }
+
+        function openAdminChat(uid) {
+            activeAdminChatUserId = uid;
+            chatUserList.classList.add('hidden');
+            chatMessagesContainer.classList.remove('hidden');
+            adminChatBackBtn.classList.remove('hidden');
+            adminGivePtsBtn.classList.remove('hidden'); // Show give points button for admin in chat
+            chatHeaderTitle.innerText = `Chat: ${uid}`;
+            renderMessages(uid, allChatsData[uid]?.messages || {});
+        }
+
+        function closeAdminChat() {
+            activeAdminChatUserId = null;
+            chatUserList.classList.remove('hidden');
+            chatMessagesContainer.classList.add('hidden');
+            adminChatBackBtn.classList.add('hidden');
+            adminGivePtsBtn.classList.add('hidden');
+            chatHeaderTitle.innerText = "Support Desk";
+            renderAdminUserList();
+        }
+
+        adminChatBackBtn.addEventListener('click', closeAdminChat);
+
+        // Admin giving +1 point to the currently active chat user
+        adminGivePtsBtn.addEventListener('click', async () => {
+            if (!isAdmin || !activeAdminChatUserId) return;
+            const userRef = ref(db, `billiard_users/${activeAdminChatUserId}`);
+            const snap = await get(userRef);
+            if (snap.exists()) {
+                const uData = snap.val();
+                const newPoints = (uData.points || 0) + 1; // Increment by 1
+                await set(userRef, { ...uData, points: newPoints });
+                showToast(`Added +1 point to ${activeAdminChatUserId}! (Total: ${newPoints})`);
+            } else {
+                showToast("Cannot give points to guest IDs. User must be registered.");
+            }
+        });
+
+        // Clear Chat feature for both Admin & User
+        clearChatBtn.addEventListener('click', () => {
+            const targetId = isAdmin ? activeAdminChatUserId : (currentUser || guestId);
+            if (!targetId) {
+                showToast("No active chat to clear.");
+                return;
+            }
+            if (confirm("Are you sure you want to delete all messages in this chat?")) {
+                set(ref(db, `billiard_chats/${targetId}`), null);
+                showToast("Chat history deleted.");
+                if (isAdmin) {
+                    renderMessages(targetId, {});
+                }
+            }
+        });
+
+        function renderMessages(uid, messagesObj) {
+            chatMessages.innerHTML = '';
+            const messagesArray = Object.values(messagesObj).sort((a, b) => a.timestamp - b.timestamp);
+            
+            if (messagesArray.length === 0) {
+                chatMessages.innerHTML = '<div class="text-center text-gray-500 text-xs mt-4 uppercase tracking-widest">Start conversation.</div>';
+                return;
+            }
+
+            messagesArray.forEach(msg => {
+                const currentSenderId = isAdmin ? 'ADMIN' : (currentUser || guestId);
+                const isSelf = msg.sender === currentSenderId;
+                
+                const msgDiv = document.createElement('div');
+                msgDiv.className = `max-w-[85%] p-3 text-xs tracking-wider flex flex-col gap-1 ${
+                    isSelf ? 'bg-white text-black self-end' : 'bg-bw-bg border border-bw-border text-white self-start'
+                }`;
+                
+                const textSpan = document.createElement('div');
+                textSpan.className = "uppercase leading-relaxed font-mono";
+                textSpan.innerText = msg.text;
+                
+                const timeSpan = document.createElement('div');
+                timeSpan.className = `text-[9px] tracking-widest ${isSelf ? 'text-gray-600 self-end' : 'text-gray-500 self-start'}`;
+                timeSpan.innerText = formatTimeShort(msg.timestamp);
+
+                msgDiv.appendChild(textSpan);
+                msgDiv.appendChild(timeSpan);
+                chatMessages.appendChild(msgDiv);
+            });
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function extractLastMessage(messagesObj) {
+            if (!messagesObj) return "No messages";
+            const msgs = Object.values(messagesObj);
+            if (msgs.length === 0) return "No messages";
+            msgs.sort((a, b) => b.timestamp - a.timestamp);
+            return msgs[0].text;
+        }
+
+        function formatTimeShort(ts) {
+            if (!ts) return '';
+            const date = new Date(ts);
+            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function sendMessage() {
+            const text = chatInput.value.trim();
+            if (!text) return;
+
+            const activeChatId = currentUser || guestId;
+            const targetUserId = isAdmin ? activeAdminChatUserId : activeChatId;
+            
+            if (!targetUserId) {
+                showToast("Select a user to message");
+                return;
+            }
+
+            const senderName = isAdmin ? 'ADMIN' : activeChatId;
+            const now = Date.now();
+
+            push(ref(db, `billiard_chats/${targetUserId}/messages`), {
+                sender: senderName,
+                text: text,
+                timestamp: now
+            });
+            
+            set(ref(db, `billiard_chats/${targetUserId}/lastUpdated`), now);
+            chatInput.value = '';
+        }
+
+        sendBtn.addEventListener('click', sendMessage);
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        // Admin Time Configuration & Extension Logic
+        window.openTimeModal = function(tableId) {
+            activeTableIdForModal = tableId;
+            timeModalTableName.innerText = `TBL ${pad(tableId)}`;
+            customMinutesInput.value = '';
+            
+            timeModal.classList.remove('hidden');
+            setTimeout(() => {
+                timeModal.classList.remove('opacity-0');
+                timeModalInner.classList.remove('scale-95');
+            }, 10);
+        };
+
+        function closeTimeModal() {
+            timeModal.classList.add('opacity-0');
+            timeModalInner.classList.add('scale-95');
+            setTimeout(() => timeModal.classList.add('hidden'), 300);
+        }
+
+        function processTimeUpdate(minutes) {
+            if (activeTableIdForModal) {
+                const tableRef = ref(db, `billiard_tables/${activeTableIdForModal}`);
+                if (minutes <= 0) {
+                    set(tableRef, { status: 'Available', endTime: null });
+                    showToast(`TBL ${pad(activeTableIdForModal)} Ended.`);
+                } else {
+                    const endTime = Date.now() + (minutes * 60 * 1000);
+                    set(tableRef, { status: 'Occupied', endTime: endTime });
+                    showToast(`TBL ${pad(activeTableIdForModal)} set for ${minutes}M.`);
+                }
+            }
+            closeTimeModal();
+        }
+
+        function processTimeExtension(extraMinutes) {
+            if (activeTableIdForModal) {
+                const tableRef = ref(db, `billiard_tables/${activeTableIdForModal}`);
+                const currentTable = tablesData[activeTableIdForModal];
+                const now = Date.now();
+                
+                let baseTime = (currentTable.endTime && currentTable.endTime > now) ? currentTable.endTime : now;
+                let newEndTime = baseTime + (extraMinutes * 60 * 1000);
+
+                set(tableRef, { status: 'Occupied', endTime: newEndTime });
+                showToast(`TBL ${pad(activeTableIdForModal)} extended by ${extraMinutes}M.`);
+            }
+            closeTimeModal();
+        }
+
+        document.querySelectorAll('.time-preset-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                processTimeUpdate(parseInt(e.target.dataset.minutes));
+            });
+        });
+
+        document.querySelectorAll('.time-extend-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                processTimeExtension(parseInt(e.target.dataset.add));
+            });
+        });
+
+        customTimeBtn.addEventListener('click', () => {
+            const mins = parseInt(customMinutesInput.value);
+            if (!isNaN(mins) && mins > 0) {
+                processTimeUpdate(mins);
+            } else {
+                showToast("Invalid Input");
+            }
+        });
+
+        cancelTime.addEventListener('click', closeTimeModal);
+
+        function openLoginModal() {
+            loginModal.classList.remove('hidden');
+            setTimeout(() => {
+                loginModal.classList.remove('opacity-0');
+                loginModalInner.classList.remove('scale-95');
+            }, 10);
+            usernameInput.value = '';
+            passwordInput.value = '';
+            usernameInput.focus();
+        }
+
+        function closeLoginModal() {
+            loginModal.classList.add('opacity-0');
+            loginModalInner.classList.add('scale-95');
+            setTimeout(() => loginModal.classList.add('hidden'), 300);
+        }
+
+        toggleViewBtn.addEventListener('click', () => {
+            if (isAdmin) {
+                isAdmin = false;
+                toggleViewBtn.innerText = "Admin Mode";
+                
+                if (currentUser) {
+                    currentModeBadge.innerText = "Player Mode";
+                } else {
+                    currentModeBadge.innerText = "Guest Mode";
+                }
+                
+                chatUserList.classList.add('hidden');
+                chatMessagesContainer.classList.remove('hidden');
+                adminChatBackBtn.classList.add('hidden');
+                adminGivePtsBtn.classList.add('hidden');
+                chatHeaderTitle.innerText = "Support Desk";
+                
+                showToast("Admin session ended");
+                updateAllTableUIs();
+                setupChatListener(); 
+            } else {
+                openLoginModal();
+            }
+        });
+
+        cancelLogin.addEventListener('click', closeLoginModal);
+        
+        confirmLogin.addEventListener('click', () => {
+            if (usernameInput.value.trim().toLowerCase() === 'admin' && passwordInput.value.trim() === 'admin') {
+                isAdmin = true;
+                closeLoginModal();
+                
+                toggleViewBtn.innerText = "Exit Admin";
+                currentModeBadge.innerText = "Admin Mode";
+                
+                activeAdminChatUserId = null;
+                chatUserList.classList.remove('hidden');
+                chatMessagesContainer.classList.add('hidden');
+                adminChatBackBtn.classList.add('hidden');
+                adminGivePtsBtn.classList.add('hidden');
+                chatHeaderTitle.innerText = "Support Desk";
+                
+                showToast("System access granted");
+                updateAllTableUIs();
+                setupChatListener();
+            } else {
+                showToast("Access Denied");
+            }
+        });
+
+        function showToast(msg) {
+            toastMessage.innerText = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        init();
+    </script>
+</body>
+</html>
